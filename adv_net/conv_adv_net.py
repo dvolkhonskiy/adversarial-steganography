@@ -2,14 +2,15 @@ import os
 import numpy as np
 
 import tensorflow as tf
-from utils import *
+from image_utils import *
 import time
 
 from layers import *
 from glob import glob
+from utils.logger import logger
 
 
-class AdvNet(object):
+class ConvAdvNet(object):
     def __init__(self, sess, image_size=108,
                  batch_size=64, sample_size=64, image_shape=(64, 64, 3),
                  z_dim=100, gf_dim=64, df_dim=64,
@@ -60,6 +61,7 @@ class AdvNet(object):
                                      name='real_images')
         self.sample_images = tf.placeholder(tf.float32, [self.sample_size] + list(self.image_shape),
                                             name='sample_images')
+
         self.z = tf.placeholder(tf.float32, [None, self.z_dim],  name='z')
 
         self.G = self.generator(self.z)
@@ -83,6 +85,9 @@ class AdvNet(object):
 
     def train(self, config):
         """Train DCGAN"""
+        if config.need_to_load:
+            self.load(config.checkpoint_dir)
+
         data = glob(os.path.join("./adv_net/data", config.dataset, "*.jpg"))
         # np.random.shuffle(data)
 
@@ -107,8 +112,7 @@ class AdvNet(object):
                 batch = [get_image(batch_file, self.image_size) for batch_file in batch_files]
                 batch_images = np.array(batch).astype(np.float32)
 
-                batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
-                    .astype(np.float32)
+                batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]).astype(np.float32)
 
                 # Update D network
                 self.sess.run(d_optim, feed_dict={self.images: batch_images, self.z: batch_z})
@@ -122,10 +126,10 @@ class AdvNet(object):
                 errD_fake = self.d_loss_fake.eval({self.z: batch_z})
                 errD_real = self.d_loss_real.eval({self.images: batch_images})
                 errG = self.g_loss.eval({self.z: batch_z})
-                print("errD:", errD_fake + errD_real, "errD_fake:", errD_fake, "errD_real", errD_real, "errG", errG)
+                logger.debug("errD:", errD_fake + errD_real, "errD_fake:", errD_fake, "errD_real", errD_real, "errG", errG)
 
                 counter += 1
-                print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f"
+                logger.debug("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f"
                       % (epoch, idx, batch_idxs, time.time() - start_time, errD_fake + errD_real, errG))
 
                 if np.mod(counter, 30) == 0:
@@ -135,7 +139,7 @@ class AdvNet(object):
                     )
                     save_images(samples, [8, 8],
                                 './samples/train_%s_%s.png' % (epoch, idx))
-                    print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
+                    logger.info("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
 
                 if np.mod(counter, 30) == 0:
                     self.save(config.checkpoint_dir, counter)
@@ -201,7 +205,7 @@ class AdvNet(object):
         self.saver.save(self.sess, os.path.join(checkpoint_dir, model_name), global_step=step)
 
     def load(self, checkpoint_dir):
-        print(" [*] Reading checkpoints...")
+        logger.info(" [*] Reading checkpoints...")
 
         model_dir = "%s_%s" % (self.dataset_name, self.batch_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)

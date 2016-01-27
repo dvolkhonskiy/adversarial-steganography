@@ -3,8 +3,9 @@ import numpy as np
 import tensorflow as tf
 from time import gmtime, strftime
 
-from model import AdvNet
-from adv_net.utils import pp, save_images
+from conv_adv_net import ConvAdvNet
+from adv_net.image_utils import pp, save_images
+from utils.logger import logger
 
 flags = tf.app.flags
 flags.DEFINE_integer("epoch", 25, "Epoch to train [25]")
@@ -16,11 +17,16 @@ flags.DEFINE_integer("image_size", 108, "The size of image to use (will be cente
 flags.DEFINE_string("dataset", "celebA", "The name of dataset [celebA, mnist, lsun]")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
 flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
-flags.DEFINE_boolean("is_train", False, "True for training, False for testing [False]")
+flags.DEFINE_boolean("is_train", True, "True for training, False for testing [False]")
+flags.DEFINE_boolean('need_to_load', True, 'Need to load saved model')
 FLAGS = flags.FLAGS
 
 
 def main(_):
+    logger.info('====================================================')
+    logger.info('===================NEW EXPERIMENT===================')
+    logger.info('====================================================')
+
     pp.pprint(flags.FLAGS.__flags)
 
     if not os.path.exists(FLAGS.checkpoint_dir):
@@ -29,7 +35,7 @@ def main(_):
         os.makedirs(FLAGS.sample_dir)
 
     with tf.Session() as sess:
-        dcgan = AdvNet(sess, image_size=FLAGS.image_size, batch_size=FLAGS.batch_size)
+        dcgan = ConvAdvNet(sess, image_size=FLAGS.image_size, batch_size=FLAGS.batch_size)
 
         if FLAGS.is_train:
             dcgan.train(FLAGS)
