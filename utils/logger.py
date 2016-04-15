@@ -3,15 +3,11 @@ import subprocess
 import sys
 import os
 
-LOG_PATH = '/var/www/html'
-LOG_FILE_NAME = 'runner.log'
-PRODUCTION_LOG_PATH = os.path.join(LOG_PATH, LOG_FILE_NAME)
+LOG_FILE_NAME = 'main.log'
 
 formatter = logging.Formatter('%(asctime)s [%(levelname)s] ' "\t" '%(message)s')
 
 log_file_path = LOG_FILE_NAME
-if os.path.exists(LOG_PATH):
-    log_file_path = PRODUCTION_LOG_PATH
 
 file_log = logging.FileHandler(log_file_path)
 file_log.setFormatter(formatter)
@@ -23,3 +19,14 @@ logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 logger.addHandler(file_log)
 logger.addHandler(stdout)
+
+
+def log(message):
+    # decorator for logging what function is doing
+    def wrapper(func):
+        def execute(*args, **kwargs):
+            logger.debug(message)
+            result = func(*args, **kwargs)
+            return result
+        return execute
+    return wrapper

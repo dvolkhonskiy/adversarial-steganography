@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from image_utils import *
+from utils.logger import logger
 
 
 class batch_norm(object):
@@ -48,8 +49,7 @@ def binary_cross_entropy_with_logits(logits, targets, name=None):
     with ops.op_scope([logits, targets], name, "bce_loss") as name:
         logits = ops.convert_to_tensor(logits, name="logits")
         targets = ops.convert_to_tensor(targets, name="targets")
-        return tf.reduce_mean(-(logits * tf.log(targets + eps) +
-                                (1. - logits) * tf.log(1. - targets + eps)))
+        return tf.reduce_mean(-(logits * tf.log(targets + eps) + (1. - logits) * tf.log(1. - targets + eps)))
 
 
 def conv_cond_concat(x, y):
@@ -59,25 +59,20 @@ def conv_cond_concat(x, y):
     return tf.concat(3, [x, y * tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
 
 
-def conv2d(input_, output_dim,
-           k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02,
-           name="conv2d"):
+def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name="conv2d"):
     with tf.variable_scope(name):
-        w = tf.get_variable('w', [k_h, k_w, input_.get_shape()[-1], output_dim],
+        w = tf.get_variable('w', shape=[k_h, k_w, input_.get_shape()[-1], output_dim],
                             initializer=tf.truncated_normal_initializer(stddev=stddev))
         conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
         return conv
 
 
-def deconv2d(input_, output_shape,
-             k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02,
-             name="deconv2d"):
+def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name="deconv2d"):
     with tf.variable_scope(name):
         # filter : [height, width, output_channels, in_channels]
         w = tf.get_variable('w', [k_h, k_h, output_shape[-1], input_.get_shape()[-1]],
                             initializer=tf.random_normal_initializer(stddev=stddev))
-        return tf.nn.deconv2d(input_, w, output_shape=output_shape,
-                              strides=[1, d_h, d_w, 1])
+        return tf.nn.conv2d_transpose(input_, w, output_shape=output_shape, strides=[1, d_h, d_w, 1])
 
 
 def leaky_relu(x, leak=0.2, name="lrelu"):

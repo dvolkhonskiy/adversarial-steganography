@@ -4,6 +4,8 @@ import tensorflow as tf
 from time import gmtime, strftime
 
 from conv_adv_net import ConvAdvNet
+from steganography.algorithms.lsb_matching import LSBMatching
+from stego_adv_net import StegoAdvNet
 from adv_net.image_utils import pp, save_images
 from utils.logger import logger
 
@@ -18,7 +20,7 @@ flags.DEFINE_string("dataset", "celebA", "The name of dataset [celebA, mnist, ls
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
 flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [False]")
-flags.DEFINE_boolean('need_to_load', True, 'Need to load saved model')
+flags.DEFINE_boolean('need_to_load', False, 'Need to load saved model')
 FLAGS = flags.FLAGS
 
 
@@ -35,7 +37,7 @@ def main(_):
         os.makedirs(FLAGS.sample_dir)
 
     with tf.Session() as sess:
-        dcgan = ConvAdvNet(sess, image_size=FLAGS.image_size, batch_size=FLAGS.batch_size)
+        dcgan = StegoAdvNet(sess, image_size=FLAGS.image_size, batch_size=FLAGS.batch_size, stego_algorithm=LSBMatching)
 
         if FLAGS.is_train:
             dcgan.train(FLAGS)

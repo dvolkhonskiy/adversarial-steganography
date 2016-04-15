@@ -1,42 +1,46 @@
 from steganography.algorithms import BaseStego
 from PIL import Image
 import numpy as np
-from numba import jit
+import tensorflow as tf
+
+from utils.logger import logger, log
 
 
 class LSBMatching(BaseStego):
     def __init__(self):
         super().__init__()
 
+
     @staticmethod
-    def encode(container, information, stego='stego.png'):
+    @log('Encoding LSB matching')
+    def encode(container, information):
         """
         LSB matching algorithm (+-1 embedding)
         :param container: path to image container
         :param information: array with int bits
         :param stego: name of image with hidden message
         """
-        img = Image.open(container)
-        width, height = img.size
-        img_matr = np.asarray(img)
-        img_matr.setflags(write=True)
 
-        red_ch = img_matr[:, :, 2].reshape((1, -1))[0]
+        n, width, height, chan = tuple(map(int, container._shape))
 
-        print(information)
-        print(BaseStego.DELIMITER)
-        information = np.append([information, BaseStego.DELIMITER])
-        for i, bit in enumerate(information):
+        information = np.append(information, BaseStego.DELIMITER)
 
-            if bit == 0 and red_ch[i] & 1 == 1 or bit == 1 and red_ch[i] & 1 == 0:
-                if np.random.randint(0, 2) == 0:
-                    red_ch[i] -= 1
-                else:
-                    red_ch[i] += 1
+        print('Num of images: %s' % n)
+        for img_n in range(n):
+            print(img_n)
 
-        img_matr[:, :, 2] = red_ch.reshape((height, width))
+            for i, bit in enumerate(information):
+                ind, jng = i // width, i - width * (i // width)
 
-        Image.fromarray(img_matr).save(stego)
+                if tf.to_int32(container[img_n, ind, jng, 0]) % 2 != bit:
+                    if np.random.randint(0, 2) == 0:
+                        tf.sub(container[img_n, ind, jng, 0], 1)
+                    else:
+                        tf.add(container[img_n, ind, jng, 0], 1)
+
+        logger.debug('Finish encoding')
+
+        return container
 
     @staticmethod
     def decode(container):

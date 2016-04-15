@@ -114,13 +114,13 @@ class ConvAdvNet(object):
 
                 batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]).astype(np.float32)
 
-                # Update D network
+                # Update D_real network
                 self.sess.run(d_optim, feed_dict={self.images: batch_images, self.z: batch_z})
 
-                # Update G network
+                # Update generator network
                 self.sess.run(g_optim, feed_dict={self.z: batch_z})
 
-                # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
+                # Run g_optim twice to make sure that d_fr_loss does not go to zero (different from paper)
                 self.sess.run(g_optim, feed_dict={self.z: batch_z})
 
                 errD_fake = self.d_loss_fake.eval({self.z: batch_z})
@@ -129,7 +129,7 @@ class ConvAdvNet(object):
                 logger.debug("errD:", errD_fake + errD_real, "errD_fake:", errD_fake, "errD_real", errD_real, "errG", errG)
 
                 counter += 1
-                logger.debug("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f"
+                logger.debug("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_fr_loss: %.8f, g_loss: %.8f"
                       % (epoch, idx, batch_idxs, time.time() - start_time, errD_fake + errD_real, errG))
 
                 if np.mod(counter, 30) == 0:
@@ -139,16 +139,16 @@ class ConvAdvNet(object):
                     )
                     save_images(samples, [8, 8],
                                 './samples/train_%s_%s.png' % (epoch, idx))
-                    logger.info("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
+                    logger.info("[Sample] d_fr_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
 
                 if np.mod(counter, 30) == 0:
                     self.save(config.checkpoint_dir, counter)
 
-    def discriminator(self, image, reuse=False, y=None):
+    def discriminator(self, input, reuse=False):
         if reuse:
             tf.get_variable_scope().reuse_variables()
 
-        h0 = leaky_relu(conv2d(image, self.df_dim, name='d_h0_conv'))
+        h0 = leaky_relu(conv2d(input, self.df_dim, name='d_h0_conv'))
         h1 = leaky_relu(self.d_bn1(conv2d(h0, self.df_dim * 2, name='d_h1_conv')))
         h2 = leaky_relu(self.d_bn2(conv2d(h1, self.df_dim * 4, name='d_h2_conv')))
         h3 = leaky_relu(self.d_bn3(conv2d(h2, self.df_dim * 8, name='d_h3_conv')))
@@ -156,21 +156,21 @@ class ConvAdvNet(object):
 
         return tf.nn.sigmoid(h4)
 
-    def generator(self, z):
-        # project `z` and reshape
-        h0 = tf.reshape(linear(z, self.gf_dim * 8 * 4 * 4, 'g_h0_lin'), [-1, 4, 4, self.gf_dim * 8])
+    def generator(self, noise):
+        # project `noise` and reshape
+        h0 = tf.reshape(linear(noise, self.gf_dim * 8 * 4 * 4, 'g_h0_lin'), [-1, 4, 4, self.gf_dim * 8])
         h0 = tf.nn.relu(self.g_bn0(h0))
 
-        h1 = deconv2d(h0, [self.batch_size, 8, 8, self.gf_dim * 4], name='g_h1')
+        h1 = conv2d_transpose(h0, [self.batch_size, 8, 8, self.gf_dim * 4], name='g_h1')
         h1 = tf.nn.relu(self.g_bn1(h1))
 
-        h2 = deconv2d(h1, [self.batch_size, 16, 16, self.gf_dim * 2], name='g_h2')
+        h2 = conv2d_transpose(h1, [self.batch_size, 16, 16, self.gf_dim * 2], name='g_h2')
         h2 = tf.nn.relu(self.g_bn2(h2))
 
-        h3 = deconv2d(h2, [self.batch_size, 32, 32, self.gf_dim * 1], name='g_h3')
+        h3 = conv2d_transpose(h2, [self.batch_size, 32, 32, self.gf_dim * 1], name='g_h3')
         h3 = tf.nn.relu(self.g_bn3(h3))
 
-        h4 = deconv2d(h3, [self.batch_size, 64, 64, 3], name='g_h4')
+        h4 = conv2d_transpose(h3, [self.batch_size, 64, 64, 3], name='g_h4')
 
         return tf.nn.tanh(h4)
 
@@ -181,16 +181,16 @@ class ConvAdvNet(object):
         h0 = tf.reshape(linear(z, self.gf_dim * 8 * 4 * 4, 'g_h0_lin'), [-1, 4, 4, self.gf_dim * 8])
         h0 = tf.nn.relu(self.g_bn0(h0, train=False))
 
-        h1 = deconv2d(h0, [self.batch_size, 8, 8, self.gf_dim * 4], name='g_h1')
+        h1 = conv2d_transpose(h0, [self.batch_size, 8, 8, self.gf_dim * 4], name='g_h1')
         h1 = tf.nn.relu(self.g_bn1(h1, train=False))
 
-        h2 = deconv2d(h1, [self.batch_size, 16, 16, self.gf_dim * 2], name='g_h2')
+        h2 = conv2d_transpose(h1, [self.batch_size, 16, 16, self.gf_dim * 2], name='g_h2')
         h2 = tf.nn.relu(self.g_bn2(h2, train=False))
 
-        h3 = deconv2d(h2, [self.batch_size, 32, 32, self.gf_dim * 1], name='g_h3')
+        h3 = conv2d_transpose(h2, [self.batch_size, 32, 32, self.gf_dim * 1], name='g_h3')
         h3 = tf.nn.relu(self.g_bn3(h3, train=False))
 
-        h4 = deconv2d(h3, [self.batch_size, 64, 64, 3], name='g_h4')
+        h4 = conv2d_transpose(h3, [self.batch_size, 64, 64, 3], name='g_h4')
 
         return tf.nn.tanh(h4)
 
