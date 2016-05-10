@@ -10,36 +10,34 @@ class LSBMatching(BaseStego):
     def __init__(self):
         super().__init__()
 
-
-    @staticmethod
     @log('Encoding LSB matching')
-    def encode(container, information):
+    def encode(self, container):
         """
         LSB matching algorithm (+-1 embedding)
-        :param container: path to image container
+        :param container: tf tensor shape (batch_size, width, height, chan)
         :param information: array with int bits
         :param stego: name of image with hidden message
         """
 
         n, width, height, chan = tuple(map(int, container._shape))
 
-        information = np.append(information, BaseStego.DELIMITER)
+        information = self.get_information(n, 50)
+        logger.debug('Information to hide', information)
 
         print('Num of images: %s' % n)
-        for img_n in range(n):
-            print(img_n)
+        for img_idx in range(n):
+            print(img_idx)
 
-            for i, bit in enumerate(information):
-                ind, jng = i // width, i - width * (i // width)
+            for i, bit in enumerate(information[img_idx]):
+                ind, jnd = i // width, i - width * (i // width)
 
-                if tf.to_int32(container[img_n, ind, jng, 0]) % 2 != bit:
+                if tf.to_int32(container[img_idx, ind, jnd, 0]) % 2 != bit:
                     if np.random.randint(0, 2) == 0:
-                        tf.sub(container[img_n, ind, jng, 0], 1)
+                        tf.sub(container[img_idx, ind, jnd, 0], 1)
                     else:
-                        tf.add(container[img_n, ind, jng, 0], 1)
+                        tf.add(container[img_idx, ind, jnd, 0], 1)
 
         logger.debug('Finish encoding')
-
         return container
 
     @staticmethod

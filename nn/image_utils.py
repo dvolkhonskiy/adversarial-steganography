@@ -1,26 +1,45 @@
 """
 Some codes from https://github.com/Newmu/dcgan_code
 """
+import os
+
+import scipy.misc
 import math
 import pprint
-import scipy.misc
 import numpy as np
+from PIL import Image
 
 pp = pprint.PrettyPrinter()
 
 get_stddev = lambda x, k_h, k_w: 1 / math.sqrt(k_w * k_h * x.get_shape()[-1])
 
 
-def get_image(image_path, image_size):
-    return transform(imread(image_path), image_size)
+def get_image(image_path, image_size, need_transform=False):
+    if need_transform:
+        return transform(imread(image_path), image_size)
+    else:
+        return imread(image_path)
 
 
-def save_images(images, size, image_path):
+def save_images_to_one(images, size, image_path):
     return imsave(inverse_transform(images), size, image_path)
 
 
 def imread(path):
-    return scipy.misc.imread(path).astype(np.float)
+    # print(path)
+    img = scipy.misc.imread(path)
+    # print(img)
+    # print(type(img))
+    img = img.astype(np.float)
+    # print(img)
+    print(img.shape)
+    img_shape = list(img.shape)
+    if len(img_shape) == 2:
+        img_shape.append(1)
+        img = img.reshape(img_shape)
+    return img
+    # print(np.asarray(Image.open(path)))
+    # return np.asarray(Image.open(path))
 
 
 def imsave(images, size, path):
@@ -32,6 +51,11 @@ def imsave(images, size, path):
         j = int(idx / size[1])
         img[j*h:j*h+h, i*w:i*w+w, :] = image
     return scipy.misc.imsave(path, img)
+
+
+def save_images(images, size, folder):
+    for idx, image in enumerate(inverse_transform(images)):
+        scipy.misc.imsave(os.path.join(folder, ''), image)
 
 
 def center_crop(x, crop_h, crop_w=None, resize_w=64):

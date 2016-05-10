@@ -5,7 +5,7 @@ import tensorflow as tf
 # from nn.conv_adv_net import ConvAdvNet
 from steganography.algorithms.lsb_matching import LSBMatching
 from nn.image_utils import save_images_to_one
-from nn.stego_adv_net import StegoAdvNet
+from nn.steganalysis import SteganalysisNet
 from utils.logger import logger
 from time import strftime, gmtime
 
@@ -45,18 +45,12 @@ def main(_):
         os.makedirs(FLAGS.sample_dir)
 
     with tf.Session() as sess:
-        dcgan = StegoAdvNet(sess, LSBMatching, config=FLAGS,
-                            image_size=FLAGS.image_size,
-                            batch_size=FLAGS.batch_size)
+        dcgan = SteganalysisNet(config=FLAGS, sess=sess, stego_algorithm=LSBMatching)
 
         if FLAGS.is_train:
             dcgan.train()
         else:
             dcgan.load(FLAGS.checkpoint_dir)
-
-        z_sample = np.random.uniform(-1, 1, size=(FLAGS.batch_size, dcgan.z_dim))
-        samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-        save_images_to_one(samples, [8, 8], './samples/test_%s.png' % strftime("%Y-%m-%d %H:%M:%S", gmtime()))
 
 if __name__ == '__main__':
     tf.app.run()

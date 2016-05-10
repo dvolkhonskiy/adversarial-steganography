@@ -1,7 +1,7 @@
+import numpy as np
 from image_utils.time_utils import Timer
 
-from steganography.algorithms.lsb_matching import LSBMatching
-import numpy as np
+from steganography.lsb_matching import LSBMatching
 
 def test_lsb_matching(algorithm, iterations=100):
     with Timer():
