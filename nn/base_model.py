@@ -47,6 +47,7 @@ class BaseModel:
     @staticmethod
     def linear(input_, output_size, scope=None, stddev=0.02):
         shape = input_.get_shape().as_list()
+        print('!!!!!!!!!!!!!!!!!', shape)
 
         with tf.variable_scope(scope or "Linear"):
             matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,

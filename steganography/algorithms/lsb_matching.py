@@ -11,7 +11,7 @@ class LSBMatching(BaseStego):
         super().__init__()
 
     @log('Encoding LSB matching')
-    def encode(self, container):
+    def tf_encode(self, container):
         """
         LSB matching algorithm (+-1 embedding)
         :param container: tf tensor shape (batch_size, width, height, chan)
@@ -39,6 +39,34 @@ class LSBMatching(BaseStego):
 
         logger.debug('Finish encoding')
         return container
+
+    @staticmethod
+    def encode(container, information, stego='stego.png'):
+        """
+        LSB matching algorithm (+-1 embedding)
+        :param container: path to image container
+        :param information: array with int bits
+        :param stego: name of image with hidden message
+        """
+        img = Image.open(container)
+        width, height = img.size
+        img_matr = np.asarray(img)
+        img_matr.setflags(write=True)
+
+        red_ch = img_matr[:, :, 2].reshape((1, -1))[0]
+
+        information = np.append(information, BaseStego.DELIMITER)
+        for i, bit in enumerate(information):
+
+            if bit == 0 and red_ch[i] & 1 == 1 or bit == 1 and red_ch[i] & 1 == 0:
+                if np.random.randint(0, 2) == 0:
+                    red_ch[i] -= 1
+                else:
+                    red_ch[i] += 1
+
+        img_matr[:, :, 2] = red_ch.reshape((height, width))
+
+        Image.fromarray(img_matr).save(stego)
 
     @staticmethod
     def decode(container):

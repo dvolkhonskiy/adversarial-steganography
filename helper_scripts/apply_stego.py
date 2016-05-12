@@ -11,14 +11,14 @@ sys.path.append('../')
 
 from steganography import LSBMatching
 
-img_dir = '/home/dvolkhonskiy/datasets/stego_celeb/test'
+img_dir = '/home/dvolkhonskiy/datasets/stego_celeb/train'
 ext = '*.png'
 algo = LSBMatching()
 
 
 def main():
     img_list = glob(os.path.join(img_dir, ext))
-    info = algo.get_information(batch_size=len(img_list), len_of_text=50)
+    info = algo.get_information(batch_size=len(img_list), len_of_text=200)
 
     for i, img in enumerate(img_list):
         path = os.path.split(img)

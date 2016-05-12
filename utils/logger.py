@@ -15,7 +15,7 @@ file_log.setFormatter(formatter)
 stdout = logging.StreamHandler(sys.stdout)
 stdout.setFormatter(formatter)
 
-logger = logging.getLogger()
+logger = logging.getLogger('stego')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(file_log)
 logger.addHandler(stdout)

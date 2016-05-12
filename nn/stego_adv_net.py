@@ -76,7 +76,7 @@ class StegoAdvNet(BaseModel):
         # discriminator real/fake
         self.D_real = self.discriminator_real_fake_nn(self.images)
 
-        self.D_stego = self.discriminator_stego_nn(self.stego_algorithm().encode(self.generator))
+        self.D_stego = self.discriminator_stego_nn(self.stego_algorithm().tf_encode(self.generator))
 
         # self.D_stego = self.discriminator_stego_nn(self.generator)
 

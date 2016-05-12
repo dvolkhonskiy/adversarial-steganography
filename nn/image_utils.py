@@ -32,7 +32,6 @@ def imread(path):
     # print(type(img))
     img = img.astype(np.float)
     # print(img)
-    print(img.shape)
     img_shape = list(img.shape)
     if len(img_shape) == 2:
         img_shape.append(1)
