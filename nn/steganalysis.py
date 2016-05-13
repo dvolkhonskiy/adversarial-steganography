@@ -51,7 +51,26 @@ class SteganalysisNet(BaseModel):
         self.d_bn2 = batch_norm(self.conf.batch_size, name='d_bn2')
         self.d_bn3 = batch_norm(self.conf.batch_size, name='d_bn3')
 
-    @log('Get targets for given files')
+    def image_processing_layer(self, X):
+        K = 1 / 12. * tf.constant([
+            [-1, 2, -2, 2, -1],
+            [2, -6, 8, -6, 2],
+            [-2, 8, -12, 8, -2],
+            [2, -6, 8, -6, 2],
+            [-1, 2, -2, 2, -1]
+        ], dtype=tf.float32)
+
+        # kernel = tf.zeros([5, 5, self.conf.image_size[-1], self.conf.image_size[-1]])
+
+        kernel = tf.pack([K, K, K])
+        kernel = tf.pack([kernel, kernel, kernel])
+        print('***********')
+        print(tf.transpose(kernel, [2, 3, 0, 1]).eval())
+
+        return tf.nn.conv2d(X, tf.transpose(kernel, [2, 3, 0, 1]), [1, 1, 1, 1], padding='SAME')
+        # return X
+
+    # @log('Get targets for given files')
     def get_targets(self, batch_files):
         get_tar = lambda x: 'stego_' in os.path.split(x)[-1]
         return np.array([get_tar(f) for f in batch_files], dtype=np.float32)
@@ -71,6 +90,8 @@ class SteganalysisNet(BaseModel):
         start_time = time.time()
         batch_idxs = min(len(data), self.conf.train_size) / self.conf.batch_size
 
+        stego_accuracy = self.accuracy()
+
         logger.debug('Starting updating')
         for epoch in range(self.conf.epoch):
             losses = []
@@ -79,7 +100,7 @@ class SteganalysisNet(BaseModel):
 
             for idx in range(0, int(batch_idxs)):
                 batch_files = data[idx * self.conf.batch_size:(idx + 1) * self.conf.batch_size]
-                batch = [get_image(batch_file, self.conf.image_size, need_transform=True) for batch_file in batch_files]
+                batch = [get_image(batch_file, self.conf.image_size) for batch_file in batch_files]
                 batch_images = np.array(batch).astype(np.float32)
 
                 batch_targets = self.get_targets(batch_files)
@@ -89,12 +110,11 @@ class SteganalysisNet(BaseModel):
 
                 losses.append(loss)
 
-                logger.debug("[ITERATION] Epoch [%2d], iteration [%4d/%4d] time: %4.4f" %
-                             (epoch, idx, batch_idxs, time.time() - start_time))
-                logger.debug('[LOSS] Loss: %.8f' % loss)
+                logger.debug("[ITERATION] Epoch [%2d], iteration [%4d/%4d] time: %4.4f, Loss: %8f, accuracy: %8f" %
+                             (epoch, idx, batch_idxs, time.time() - start_time, loss, stego_accuracy))
 
                 counter += 1
-                if np.mod(counter, 600) == 0:
+                if np.mod(counter, 100) == 0:
                     # self.save(self.conf.checkpoint_dir, counter)
 
                     stego_accuracy = self.accuracy()
@@ -105,27 +125,28 @@ class SteganalysisNet(BaseModel):
         stego_answs = self.sess.run(self.network, feed_dict={self.images: test_stego})
         non_stego_answs = self.sess.run(self.network, feed_dict={self.images: test_non_stego})
 
-        stego_mistakes = tf.not_equal(tf.ones_like(test_stego), tf.round(stego_answs))
-        non_stego_mistakes = tf.not_equal(tf.zeros_like(test_non_stego), tf.round(non_stego_answs))
+        # print(tf.ones((1, test_stego.shape[0])).eval(), tf.reshape(tf.round(stego_answs), (1, -1)).eval())
+        stego_mistakes = tf.equal(tf.ones((1, test_stego.shape[0])), tf.reshape(tf.round(stego_answs), (1, -1)))
+        non_stego_mistakes = tf.equal(tf.zeros((1, test_non_stego.shape[0])), tf.reshape(tf.round(non_stego_answs), (1, -1)))
 
         return (tf.reduce_mean(tf.cast(stego_mistakes, tf.float32)).eval() +
                 tf.reduce_mean(tf.cast(non_stego_mistakes, tf.float32)).eval()) / 2
 
     @log('Accuracy')
     def accuracy(self):
-        test_stego = [get_image(batch_file, self.conf.image_size, need_transform=True) for batch_file in
-                      self.get_images_names('test/stego_*.%s' % self.conf.img_format)]
+        test_stego = [get_image(batch_file, self.conf.image_size) for batch_file in
+                      self.get_images_names('test/stego_*.%s' % self.conf.img_format)[:2**13]]
         test_stego = np.array(test_stego).astype(np.float32)
 
-        test_non_stego = [get_image(batch_file, self.conf.image_size, need_transform=True) for batch_file in
-                          self.get_images_names('test/empty_*.%s' % self.conf.img_format)]
+        test_non_stego = [get_image(batch_file, self.conf.image_size) for batch_file in
+                          self.get_images_names('test/empty_*.%s' % self.conf.img_format)[:2**13]]
         test_non_stego = np.array(test_non_stego).astype(np.float32)
 
         accuracies = []
 
         batch_idxs = min(len(test_stego), self.conf.train_size) / self.conf.batch_size
 
-        logger.debug('Starting iteration')
+        # logger.debug('Starting iteration')
         for idx in range(0, int(batch_idxs)):
             batch_files_stego = test_stego[idx * self.conf.batch_size:(idx + 1) * self.conf.batch_size]
 
@@ -150,7 +171,10 @@ class SteganalysisNet(BaseModel):
 
     @lazy_property
     def loss(self):
-        return binary_cross_entropy_with_logits(self.target, self.network)
+        # print(tf.reshape(self.network, [self.conf.batch_size]).eval().shape)
+        return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(tf.reshape(self.network,
+                                                                                [self.conf.batch_size]), self.target))
+        # return -tf.reduce_sum(self.target * tf.log(self.network))
 
     @lazy_property
     def error(self):
@@ -159,25 +183,32 @@ class SteganalysisNet(BaseModel):
 
     @lazy_property
     def optimize(self):
-        return tf.train.AdamOptimizer(self.conf.learning_rate, beta1=self.conf.beta1).minimize(self.loss)
+        return tf.train.AdamOptimizer(self.conf.learning_rate).minimize(self.loss)
 
     @lazy_property
     def network(self):
+        # net = self.conv2d(self.images, 64, [7, 7], activation=tf.nn.relu, name='nn_h0_conv')
+        # net = self.conv2d(net, 128, [5, 5], activation=tf.nn.relu, name='nn_h2_conv')
+        # net = self.conv2d(net, 256, [3, 3], activation=tf.nn.relu, name='nn_h3_conv')
+        #
+        # net = tf.reshape(net, [self.conf.batch_size, -1])
+        # out = self.linear(net, 1, 'nn_h4_lin')
+
         df_dim = 64
-        net = self.conv2d(self.images, df_dim, name='nn_h0_conv')
-        net = self.leaky_relu(net)
 
-        net = self.conv2d(net, df_dim * 2, name='nn_h1_conv')
-        net = self.d_bn1(net)
-        net = self.leaky_relu(net)
+        net = self.image_processing_layer(self.images)
 
-        net = self.conv2d(net, df_dim * 4, name='nn_h2_conv')
-        net = self.d_bn2(net)
-        net = self.leaky_relu(net)
+        net = self.conv2d(net, df_dim, k_w=9, k_h=9, name='nn_h0_conv')
+        net = tf.nn.relu(net)
 
-        net = self.conv2d(net, df_dim * 8, name='nn_h3_conv')
-        net = self.d_bn3(net)
-        net = self.leaky_relu(net)
+        net = self.conv2d(net, df_dim * 2, k_w=7, k_h=7, name='nn_h1_conv')
+        net = tf.nn.relu(net)
+
+        net = self.conv2d(net, df_dim * 4, k_w=5, k_h=5, name='nn_h2_conv')
+        net = tf.nn.relu(net)
+
+        net = self.conv2d(net, df_dim * 8, k_w=3, k_h=3, name='nn_h3_conv')
+        net = tf.nn.relu(net)
 
         net = tf.reshape(net, [self.conf.batch_size, -1])
         out = self.linear(net, 1, 'nn_h4_lin')

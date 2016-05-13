@@ -6,6 +6,7 @@ import time
 from nn.layers import *
 from glob import glob
 from utils.logger import logger, log
+import tensorflow.contrib.skflow as skflow
 
 
 class BaseModel:
@@ -28,6 +29,13 @@ class BaseModel:
                                 initializer=tf.truncated_normal_initializer(stddev=stddev))
             conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
             return conv
+
+    # @staticmethod
+    # def conv2d(X, n_filters, filter_shape, bias=False, activation=None, name='conv2d'):
+    #     with tf.variable_scope(name):
+    #         return skflow.ops.conv2d(X, n_filters=n_filters,
+    #                                  filter_shape=filter_shape, bias=bias,
+    #                                  activation=activation)
 
     @staticmethod
     def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name="deconv2d"):

@@ -90,6 +90,7 @@ class StegoAdvNet(BaseModel):
 
     @log('Initializing batch norms')
     def init_batch_norms(self):
+        # todo tf.nn.batch_normalization
         # batch normalization : deals with poor initialization helps gradient flow
         self.d_bn1 = batch_norm(self.conf.batch_size, name='d_bn1')
         self.d_bn2 = batch_norm(self.conf.batch_size, name='d_bn2')
