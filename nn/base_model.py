@@ -10,10 +10,9 @@ import tensorflow.contrib.skflow as skflow
 
 
 class BaseModel:
-    def __init__(self, sess, config, model_name):
+    def __init__(self, sess, config):
         self.sess = sess
         self.conf = config
-        self.model_name = model_name
         self.tf_init_rnd_norm = tf.random_normal_initializer
 
     def init_saver(self):
@@ -55,7 +54,6 @@ class BaseModel:
     @staticmethod
     def linear(input_, output_size, scope=None, stddev=0.02):
         shape = input_.get_shape().as_list()
-        print('!!!!!!!!!!!!!!!!!', shape)
 
         with tf.variable_scope(scope or "Linear"):
             matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
@@ -74,26 +72,33 @@ class BaseModel:
     def train(self):
         raise NotImplementedError
 
-    @log('Saving model')
     def save(self, checkpoint_dir, step):
-        model_dir = "%s_%s" % (self.conf.dataset_name, self.conf.batch_size)
+
+        model_dir = "%s_%s" % (self.conf.model_name, self.conf.batch_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
 
-        self.saver.save(self.sess, os.path.join(checkpoint_dir, self.model_name), global_step=step)
+        ckpt_name = '%s_%s.ckpt' % (self.conf.model_name, step)
+
+        logger.info('[SAVING] step: %s, name: %s' % (step, ckpt_name))
+        self.saver.save(self.sess, os.path.join(checkpoint_dir, ckpt_name), global_step=step)
 
     @log('Loading module')
-    def load(self, checkpoint_dir):
-        logger.info(" [*] Reading checkpoints...")
-
-        model_dir = "%s_%s" % (self.conf.dataset_name, self.conf.batch_size)
+    def load(self, checkpoint_dir, step):
+        model_dir = "%s_%s" % (self.conf.model_name, self.conf.batch_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
 
-        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
-        if ckpt and ckpt.model_checkpoint_path:
-            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+
+        try:
+            ckpt_name = '%s_%s.ckpt-%s' % (self.conf.model_name, step, step)
+
+            logger.info('[LOADING] step: %s, name: %s' % (step, ckpt_name))
             self.saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))
-        else:
-            raise Exception(" [!] Testing, but %s not found" % checkpoint_dir)
+        except Exception as e:
+            logger.debug(e)
+            ckpt_name = 'StegoDCGAN-%s' % (step)
+
+            logger.info('[LOADING] step: %s, name: %s' % (step, ckpt_name))
+            self.saver.restore(self.sess, os.path.join(checkpoint_dir, ckpt_name))

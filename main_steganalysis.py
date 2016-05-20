@@ -10,7 +10,8 @@ from utils.logger import logger
 from time import strftime, gmtime
 
 flags = tf.app.flags
-flags.DEFINE_integer("epoch", 50, "Epoch to train [25]")
+flags.DEFINE_string('model_name', 'SteganalysisCLF_LSB_MATCHING', 'Name of trainable model')
+flags.DEFINE_integer("epoch", 20, "Epoch to train [25]")
 flags.DEFINE_float("learning_rate", 0.0001, "Learning rate of for adam [0.0002]")
 flags.DEFINE_float("beta1", 0.9, "Momentum term of adam [0.5]")
 flags.DEFINE_integer("train_size", np.inf, "The size of train images [np.inf]")
@@ -24,9 +25,6 @@ flags.DEFINE_string('img_format', 'png', 'Format of input images')
 # flags.DEFINE_string('data', '/home/dvolkhonskiy/datasets/lusn/bedroom_train_lmdb', 'Dataset directory')
 flags.DEFINE_string('data', '/home/dvolkhonskiy/datasets/stego_celeb', 'Dataset directory')
 flags.DEFINE_string('dataset_name', 'celeba', 'Dataset Name')
-# flags.DEFINE_string('data', '/home/dvolkhonskiy/datasets/lusn/data', 'Dataset directory')
-# flags.DEFINE_string('data', '/home/dvolkhonskiy/datasets/bossbase', 'Dataset directory')
-# flags.DEFINE_string('data', '/Users/dvolkhonskiy/Dropbox/science/deep-stego/nn/data/img_align_celeba', 'Dataset directory')
 flags.DEFINE_string('summaries_dir', './tf_log', 'Directory fot TF to store logs')
 FLAGS = flags.FLAGS
 
@@ -44,12 +42,14 @@ def main(_):
         os.makedirs(FLAGS.sample_dir)
 
     with tf.Session() as sess:
-        dcgan = SteganalysisNet(config=FLAGS, sess=sess, stego_algorithm=LSBMatching, )
+        steganalisys = SteganalysisNet(config=FLAGS, sess=sess, stego_algorithm=LSBMatching, )
 
         if FLAGS.is_train:
-            dcgan.train()
+            steganalisys.train()
         else:
-            dcgan.load(FLAGS.checkpoint_dir)
+            steganalisys.load(FLAGS.checkpoint_dir, step=8600)
+
+        print('ACCURACY:::::::::%s' % steganalisys.accuracy(test_dir='test', n_files=-1))
 
 if __name__ == '__main__':
     tf.app.run()

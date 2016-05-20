@@ -52,9 +52,9 @@ def imsave(images, size, path):
     return scipy.misc.imsave(path, img)
 
 
-def save_images(images, size, folder):
+def save_images(images, i, folder):
     for idx, image in enumerate(inverse_transform(images)):
-        scipy.misc.imsave(os.path.join(folder, ''), image)
+        scipy.misc.imsave(os.path.join(folder, '%s.png' % (i * idx)), image)
 
 
 def center_crop(x, crop_h, crop_w=None, resize_w=64):

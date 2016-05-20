@@ -18,7 +18,6 @@ class StegoAdvNet(BaseModel):
                  image_shape=(64, 64, 3), z_dim=100, gf_dim=64, df_dim=64, gfc_dim=1024, dfc_dim=1024, c_dim=3,
                  dataset_name='celeb'):
         """
-
         :param sess: TensorFlow session
         :param stego_algorithm:
         :param image_size:
@@ -36,7 +35,7 @@ class StegoAdvNet(BaseModel):
         :return:
         """
 
-        super().__init__(sess, config, 'StegoDCGAN')
+        super().__init__(sess, config)
 
         self.stego_algorithm = stego_algorithm
 
@@ -76,9 +75,9 @@ class StegoAdvNet(BaseModel):
         # discriminator real/fake
         self.D_real = self.discriminator_real_fake_nn(self.images)
 
-        self.D_stego = self.discriminator_stego_nn(self.stego_algorithm().tf_encode(self.generator))
+        # self.D_stego = self.discriminator_stego_nn(self.stego_algorithm().tf_encode(self.generator))
 
-        # self.D_stego = self.discriminator_stego_nn(self.generator)
+        self.D_stego = self.discriminator_stego_nn(self.generator)
 
         self.D_fake = self.discriminator_real_fake_nn(self.generator, reuse=True)
 

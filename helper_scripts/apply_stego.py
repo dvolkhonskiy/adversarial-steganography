@@ -11,7 +11,7 @@ sys.path.append('../')
 
 from steganography import LSBMatching
 
-img_dir = '/home/dvolkhonskiy/datasets/stego_celeb/test'
+img_dir = '/home/dvolkhonskiy/datasets/stego_celeb/gen_test'
 ext = '*.png'
 algo = LSBMatching()
 

@@ -4,12 +4,14 @@ import numpy as np
 import tensorflow as tf
 # from nn.conv_adv_net import ConvAdvNet
 from steganography.algorithms.lsb_matching import LSBMatching
-from nn.image_utils import save_images_to_one
+from nn.image_utils import save_images_to_one, save_images
 from nn.stego_adv_net import StegoAdvNet
 from utils.logger import logger
 from time import strftime, gmtime
 
 flags = tf.app.flags
+flags.DEFINE_string('model_name', 'celeba', 'Name of trainable model')
+
 flags.DEFINE_integer("epoch", 50, "Epoch to train [25]")
 flags.DEFINE_float("learning_rate", 0.0002, "Learning rate of for adam [0.0002]")
 flags.DEFINE_string('alpha', 0.7, 'G loss = alpha * fake_loss + (1 - alpha) * stego_loss')
@@ -52,11 +54,18 @@ def main(_):
         if FLAGS.is_train:
             dcgan.train()
         else:
-            dcgan.load(FLAGS.checkpoint_dir)
+            dcgan.load(FLAGS.checkpoint_dir, 128000)
+
+        n_batches = 200
 
         z_sample = np.random.uniform(-1, 1, size=(FLAGS.batch_size, dcgan.z_dim))
-        samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-        save_images_to_one(samples, [8, 8], './samples/test_%s.png' % strftime("%Y-%m-%d %H:%M:%S", gmtime()))
+        images = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
+
+        for i in range(n_batches):
+            z_sample = np.random.uniform(-1, 1, size=(FLAGS.batch_size, dcgan.z_dim))
+            samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
+            save_images(samples, i, folder='/home/dvolkhonskiy/datasets/stego_celeb/gen_test')
+        # save_images_to_one(samples, [8, 8], './samples/test_%s.png' % strftime("%Y-%m-%d %H:%M:%S", gmtime()))
 
 if __name__ == '__main__':
     tf.app.run()
