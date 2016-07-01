@@ -10,11 +10,11 @@ from PIL import Image
 import sys
 sys.path.append('../')
 
-from nn.image_utils import transform, imread, center_crop
+from nn.image_utils import transform, imread
 import scipy.misc
-from scipy.misc import imsave
+from scipy.misc import imsave, imread
 
-img_dir = '/home/dvolkhonskiy/datasets/stego_celeb/lsb_matching_train'
+img_dir = '/home/dvolkhonskiy/datasets/stego_celeb/hugo_train'
 ext = '*.png'
 
 
@@ -24,14 +24,13 @@ def main():
     for i, img in enumerate(img_list):
         print('Processing %s' % img)
 
-        if 'stego_' in os.path.split(img)[-1]:
+        # if 'stego_' in os.path.split(img)[-1] or 'empty_' in os.path.split(img)[-1]:
+        #     print('removing')
+        #     os.remove(img)
+        try:
+            scipy.misc.imread(img)
+        except OSError:
             os.remove(img)
-            continue
-
-        imsave(img, center_crop(imread(img), 64))
-
-        if i % 100 == 0:
-            print('Processed %s from %s' % (i, len(img_list)))
 
 
 if __name__ == '__main__':

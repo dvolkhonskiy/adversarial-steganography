@@ -6,7 +6,7 @@ import tensorflow as tf
 from utils.logger import logger, log
 
 
-class LSBMatching(BaseStego):
+class LSB(BaseStego):
     def __init__(self):
         super().__init__()
 
@@ -56,17 +56,18 @@ class LSBMatching(BaseStego):
         red_ch = img_matr[:, :, 2].reshape((1, -1))[0]
 
         information = np.append(information, BaseStego.DELIMITER)
+        print(information.shape)
         for i, bit in enumerate(information):
 
-            if bit == 0 and red_ch[i] & 1 == 1 or bit == 1 and red_ch[i] & 1 == 0:
-                if np.random.randint(0, 2) == 0:
-                    red_ch[i] -= 1
+            if red_ch[i] & 1 != bit:
+                if red_ch[i] & 1 == 0:
+                    red_ch[i] |= 1
                 else:
-                    red_ch[i] += 1
+                    red_ch[i] &= (red_ch[i] - 1)
 
         img_matr[:, :, 2] = red_ch.reshape((height, width))
 
-        Image.fromarray(img_matr).save('stego_' + container)
+        Image.fromarray(img_matr).save(stego)
 
     @staticmethod
     def decode(container):

@@ -14,6 +14,10 @@ class BaseStego:
         return [str_to_bin(texts[start_idx:start_idx+len_of_text]) for start_idx in start_idxes]
 
     @staticmethod
+    def tf_encode(container):
+        raise NotImplementedError
+
+    @staticmethod
     def encode(container, information):
         raise NotImplementedError
 

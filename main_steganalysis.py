@@ -10,12 +10,12 @@ from utils.logger import logger
 from time import strftime, gmtime
 
 flags = tf.app.flags
-flags.DEFINE_string('model_name', 'SteganalysisCLF_LSB_MATCHING', 'Name of trainable model')
-flags.DEFINE_integer("epoch", 20, "Epoch to train [25]")
-flags.DEFINE_float("learning_rate", 0.0001, "Learning rate of for adam [0.0002]")
-flags.DEFINE_float("beta1", 0.9, "Momentum term of adam [0.5]")
+flags.DEFINE_string('model_name', 'SteganalysisCLF_HUGO', 'Name of trainable model')
+flags.DEFINE_integer("epoch", 25, "Epoch to train [25]")
+flags.DEFINE_float("learning_rate", 0.000005, "Learning rate of for adam [0.0002]")
+flags.DEFINE_float("beta1", 0.5, "Momentum term of adam [0.5]")
 flags.DEFINE_integer("train_size", np.inf, "The size of train images [np.inf]")
-flags.DEFINE_integer("batch_size", 256, "The size of batch images [64]")
+flags.DEFINE_integer("batch_size", 128, "The size of batch images [64]")
 flags.DEFINE_integer("image_size", 108, "The size of image to use (will be center cropped) [108]")
 flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
 flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
@@ -42,14 +42,15 @@ def main(_):
         os.makedirs(FLAGS.sample_dir)
 
     with tf.Session() as sess:
-        steganalisys = SteganalysisNet(config=FLAGS, sess=sess, stego_algorithm=LSBMatching, )
+        steganalisys = SteganalysisNet(config=FLAGS, sess=sess, stego_algorithm=LSBMatching, stego_name='hugo')
 
         if FLAGS.is_train:
             steganalisys.train()
         else:
-            steganalisys.load(FLAGS.checkpoint_dir, step=8600)
+            # steganalisys.load(FLAGS.checkpoint_dir, step=28481) # LSB matching clf
+            steganalisys.load(FLAGS.checkpoint_dir, step=28481)
 
-        print('ACCURACY:::::::::%s' % steganalisys.accuracy(test_dir='test', n_files=-1))
+        print('ACCURACY:::::::::%s' % steganalisys.accuracy(test_dir='gen_test', n_files=-1))
 
 if __name__ == '__main__':
     tf.app.run()
