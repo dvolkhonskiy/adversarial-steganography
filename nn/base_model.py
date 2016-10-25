@@ -3,10 +3,8 @@ import numpy as np
 import tensorflow as tf
 from nn.image_utils import get_image, save_images_to_one
 import time
-from nn.layers import *
 from glob import glob
 from utils.logger import logger, log
-import tensorflow.contrib.skflow as skflow
 
 
 class BaseModel:
@@ -18,23 +16,22 @@ class BaseModel:
     def init_saver(self):
         self.saver = tf.train.Saver()
 
-    def get_images_names(self, _format):
+    def get_images_names(self, _format, abs=False):
+        if abs:
+            return glob(_format)
         return glob(os.path.join(self.conf.data, _format))
 
     @staticmethod
-    def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name="conv2d"):
-        with tf.variable_scope(name):
-            w = tf.get_variable('w', shape=[k_h, k_w, input_.get_shape()[-1], output_dim],
-                                initializer=tf.truncated_normal_initializer(stddev=stddev))
-            conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
-            return conv
+    def batch_norm(x, scope='batch_norm', reuse=False):
+        with tf.variable_scope(scope, reuse=reuse):
+            shape = x.get_shape().as_list()
 
-    # @staticmethod
-    # def conv2d(X, n_filters, filter_shape, bias=False, activation=None, name='conv2d'):
-    #     with tf.variable_scope(name):
-    #         return skflow.ops.conv2d(X, n_filters=n_filters,
-    #                                  filter_shape=filter_shape, bias=bias,
-    #                                  activation=activation)
+            mean, var = tf.nn.moments(x, axes=[0])
+
+            gamma = tf.get_variable("gamma", [shape[-1]], initializer=tf.random_normal_initializer(1., 0.02))
+            beta = tf.get_variable("beta", [shape[-1]], initializer=tf.constant_initializer(0.))
+
+            return tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-5)
 
     @staticmethod
     def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name="deconv2d"):
@@ -45,32 +42,23 @@ class BaseModel:
             return tf.nn.conv2d_transpose(input_, w, output_shape=output_shape, strides=[1, d_h, d_w, 1])
 
     @staticmethod
-    def leaky_relu(x, leak=0.2, name="lrelu"):
+    def leaky_relu(x, alpha=0.2, name="lrelu"):
         with tf.variable_scope(name):
-            f1 = 0.5 * (1 + leak)
-            f2 = 0.5 * (1 - leak)
-            return f1 * x + f2 * abs(x)
+            return tf.maximum(alpha * x, x)
 
-    @staticmethod
-    def linear(input_, output_size, scope=None, stddev=0.02):
-        shape = input_.get_shape().as_list()
+    def image_processing_layer(self, X):
+        K = 1 / 12. * tf.constant([
+            [-1, 2, -2, 2, -1],
+            [2, -6, 8, -6, 2],
+            [-2, 8, -12, 8, -2],
+            [2, -6, 8, -6, 2],
+            [-1, 2, -2, 2, -1]
+        ], dtype=tf.float32)
 
-        with tf.variable_scope(scope or "Linear"):
-            matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
-                                     initializer=tf.random_normal_initializer(stddev=stddev))
-            return tf.matmul(input_, matrix)
+        kernel = tf.pack([K, K, K])
+        kernel = tf.pack([kernel, kernel, kernel])
 
-    @log('Initializing neural networks')
-    def init_neural_networks(self):
-        raise NotImplementedError
-
-    @log('Initializing loss')
-    def init_loss(self):
-        raise NotImplementedError
-
-    @log('Train')
-    def train(self):
-        raise NotImplementedError
+        return tf.nn.conv2d(X, tf.transpose(kernel, [2, 3, 0, 1]), [1, 1, 1, 1], padding='SAME')
 
     def save(self, checkpoint_dir, step):
 
@@ -89,8 +77,6 @@ class BaseModel:
     def load(self, checkpoint_dir, step):
         model_dir = "%s_%s" % (self.conf.model_name, self.conf.batch_size)
         checkpoint_dir = os.path.join(checkpoint_dir, model_dir)
-
-
         try:
             ckpt_name = '%s_%s.ckpt-%s' % (self.conf.model_name, step, step)
 
