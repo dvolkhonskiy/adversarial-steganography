@@ -1,19 +1,17 @@
-import os
-import numpy as np
-import tensorflow as tf
-from nn.image_utils import get_image, save_images_to_one
-import time
-from nn.layers import *
-from glob import glob
-from utils.logger import logger, log
-import tensorflow.contrib.learn as skflow
-import tensorflow.contrib.layers as layers
-from nn.base_model import BaseModel
 import functools
+import os
+import time
 
+from tensorflow.contrib.layers import convolution2d as conv2d
+from tensorflow.contrib.layers import fully_connected as linear
 
-# import matplotlib.pyplot as plt
-# import seaborn as sns
+from nn.base_model import BaseModel
+from nn.image_utils import get_image
+from nn.layers import *
+from utils.logger import logger, log
+
+import tensorflow as tf
+import numpy as np
 
 
 def lazy_property(function):
@@ -29,7 +27,7 @@ def lazy_property(function):
     return wrapper
 
 
-class SteganalysisNet(BaseModel):
+class Steganalyzer(BaseModel):
     def __init__(self, config, sess, stego_algorithm, image_shape=(64, 64, 3), stego_name=None):
         super().__init__(sess, config)
         self.stego_algorithm = stego_algorithm
@@ -41,8 +39,10 @@ class SteganalysisNet(BaseModel):
 
         if stego_name:
             self.data = self.get_images_names('%s_train/*.%s' % (stego_name, self.conf.img_format))
+            self.test_dir = '%s_test' % stego_name
         else:
             self.data = self.get_images_names('train/*.%s' % self.conf.img_format)
+            self.test_dir = 'test'
 
         # init
         self.loss
@@ -58,13 +58,10 @@ class SteganalysisNet(BaseModel):
             [-1, 2, -2, 2, -1]
         ], dtype=tf.float32)
 
-        # kernel = tf.zeros([5, 5, self.conf.image_size[-1], self.conf.image_size[-1]])
-
         kernel = tf.pack([K, K, K])
         kernel = tf.pack([kernel, kernel, kernel])
 
         return tf.nn.conv2d(X, tf.transpose(kernel, [2, 3, 0, 1]), [1, 1, 1, 1], padding='SAME')
-
 
     def get_targets(self, batch_files):
         get_tar = lambda x: int('stego_' in os.path.split(x)[-1])
@@ -75,9 +72,9 @@ class SteganalysisNet(BaseModel):
         return out
 
     @log('Training')
-    def train(self):
+    def train(self, counter=1, gen_dirs=()):
         if self.conf.need_to_load:
-            self.load(self.conf.checkpoint_dir)
+            self.load(self.conf.checkpoint_dir, step=counter)
 
         data = self.data
         logger.info('Total amount of images: %s' % len(data))
@@ -85,7 +82,7 @@ class SteganalysisNet(BaseModel):
 
         tf.initialize_all_variables().run()
 
-        counter = 1
+        # counter = 1
         start_time = time.time()
         batch_idxs = min(len(data), self.conf.train_size) / self.conf.batch_size
 
@@ -115,36 +112,41 @@ class SteganalysisNet(BaseModel):
 
                 losses.append(loss)
 
-                logger.debug("[ITERATION] Epoch [%2d], iteration [%4d/%4d] time: %4.4f, Loss: %8f, accuracy: %8f" %
-                             (epoch, idx, batch_idxs, time.time() - start_time, loss, stego_accuracy))
+                # logger.debug("[ITERATION] Epoch [%2d], iteration [%4d/%4d] time: %4.4f, Loss: %8f, accuracy: %8f" %
+                #              (epoch, idx, batch_idxs, time.time() - start_time, loss, stego_accuracy))
 
                 counter += 1
 
-                if counter % 100 == 0:
-                    if self.stego_name:
-                        stego_accuracy = self.accuracy(test_dir=('%s_test' % self.stego_name))
-                    else:
-                        stego_accuracy = self.accuracy()
-                    logger.info('Accuracy %s' % stego_accuracy)
+                if counter % 300 == 0:
+                    logger.info('------')
 
-                    accuracies.append(stego_accuracy)
-                    accuracies_steps.append(counter)
+                    stego_accuracy = self.accuracy(n_files=-1, test_dir=self.test_dir)
+                    logger.info('[TEST] Epoch {:2d} accuracy: {:3.1f}%'.format(epoch + 1, 100 * stego_accuracy))
 
-                    np.savetxt('loss.csv', losses)
-                    np.savetxt('accuracies.csv', losses)
+                    for gen_dir in gen_dirs:
+                        gen_accuracy = self.accuracy(n_files=-1, test_dir=gen_dir)
+                        logger.info('[GEN_TEST] Folder {}, accuracy: {:3.1f}%'.format(gen_dir, 100 * gen_accuracy))
 
-            # SAVE after each epoch
-            self.save(self.conf.checkpoint_dir, counter)
 
-            stego_accuracy = self.accuracy(n_files=-1)
 
-            accuracies.append(stego_accuracy)
-            accuracies_steps.append(counter)
+                        # SAVE after each epoch
+                        # self.save(self.conf.checkpoint_dir, counter)
 
-            max_acc_idx = np.argmax(accuracies)
-            logger.info('[TEST] Epoch {:2d} error: {:3.1f}%'.format(epoch + 1, 100 * stego_accuracy))
-            logger.info('[TEST] Max accuracy: %s, step: %s, epoch: %s' % (accuracies[max_acc_idx],
-                                                                          accuracies_steps[max_acc_idx], epoch))
+                        # stego_accuracy = self.accuracy(n_files=-1, test_dir=self.test_dir)
+                        # gen_accuracy = self.accuracy(n_files=-1, test_dir=gen_dir)
+                        #
+                        # accuracies.append(stego_accuracy)
+                        # accuracies_steps.append(counter)
+                        #
+                        # np.savetxt('accuracies.csv', accuracies)
+                        # np.savetxt('accuracies_steps.csv', accuracies_steps)
+                        #
+                        # max_acc_idx = np.argmax(accuracies)
+                        # logger.info('[TEST] Epoch {:2d} error: {:3.1f}%'.format(epoch + 1, 100 * stego_accuracy))
+                        # logger.info('[GEN_TEST] Epoch {:2d} error: {:3.1f}%'.format(epoch + 1, 100 * gen_accuracy))
+
+                        # logger.info('[TEST] Max accuracy: %s, step: %s, epoch: %s' % (accuracies[max_acc_idx],
+                        #                                                               accuracies_steps[max_acc_idx], epoch))
 
     def get_accuracy(self, X_test, y_test):
         stego_answs = self.sess.run(self.network, feed_dict={self.images: X_test})
@@ -152,9 +154,9 @@ class SteganalysisNet(BaseModel):
 
         return tf.reduce_mean(tf.cast(stego_mistakes, tf.float32)).eval()
 
-    def accuracy(self, test_dir='test', n_files=2**12):
+    def accuracy(self, test_dir='test', abs=False, n_files=2 ** 12):
         logger.info('[TEST], test data folder: %s, n_files: %s' % (test_dir, 2 * n_files))
-        X_test = self.get_images_names('%s/*.%s' % (test_dir, self.conf.img_format))[:n_files]
+        X_test = self.get_images_names('%s/*.%s' % (test_dir, self.conf.img_format), abs=abs)[:n_files]
 
         accuracies = []
 
@@ -172,19 +174,12 @@ class SteganalysisNet(BaseModel):
 
         return np.mean(accuracies)
 
-    @log('Plotting losses')
-    def plot_loss(self):
-        pass
-
     @lazy_property
     def saver(self):
         return tf.train.Saver()
 
     @lazy_property
     def loss(self):
-        # answs = tf.reshape(self.network, [self.conf.batch_size])
-        # answs = tf.cast(tf.argmax(self.network, 1), tf.float32)
-        # print()
         errs = tf.nn.softmax_cross_entropy_with_logits(self.network, self.target)
         return tf.reduce_mean(errs)
 
@@ -198,23 +193,20 @@ class SteganalysisNet(BaseModel):
 
         net = self.image_processing_layer(net)
 
-        net = layers.convolution2d(net, 10, [7, 7], activation_fn=tf.nn.relu, name='conv1',
-                                   weight_init=tf.truncated_normal_initializer(stddev=0.02))
-        net = layers.convolution2d(net, 20, [5, 5], activation_fn=tf.nn.relu, name='conv2',
-                                   weight_init=tf.truncated_normal_initializer(stddev=0.02))
+        def get_init():
+            return tf.truncated_normal_initializer(stddev=0.02)
 
-        net = tf.nn.max_pool(net, [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME')
+        net = conv2d(net, 10, [7, 7], activation_fn=tf.nn.relu, name='conv1', weights_initializer=get_init())
+        net = conv2d(net, 20, [5, 5], activation_fn=tf.nn.relu, name='conv2', weights_initializer=get_init())
+        net = tf.nn.max_pool(net, [1, 4, 4, 1], [1, 1, 1, 1], padding='SAME')
 
-        net = layers.convolution2d(net, 30, [3, 3], activation_fn=tf.nn.relu, name='conv3',
-                                   weight_init=tf.truncated_normal_initializer(stddev=0.02))
-        net = layers.convolution2d(net, 40, [3, 3], activation_fn=tf.nn.relu, name='conv4',
-                                   weight_init=tf.truncated_normal_initializer(stddev=0.02))
+        net = conv2d(net, 30, [3, 3], activation_fn=tf.nn.relu, name='conv3', weights_initializer=get_init())
+        net = conv2d(net, 40, [3, 3], activation_fn=tf.nn.relu, name='conv4', weights_initializer=get_init())
 
         net = tf.nn.max_pool(net, [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME')
 
         net = tf.reshape(net, [self.conf.batch_size, -1])
-        net = layers.fully_connected(net, 1000, activation_fn=tf.nn.tanh, name='FC1')
 
-        out = layers.fully_connected(net, 2, activation_fn=tf.nn.sigmoid, name='out')
-
+        net = linear(net, 100, activation_fn=tf.nn.tanh, name='FC1')
+        out = linear(net, 2, activation_fn=tf.nn.softmax, name='out')
         return out

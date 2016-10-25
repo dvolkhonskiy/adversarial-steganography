@@ -14,7 +14,7 @@ pp = pprint.PrettyPrinter()
 get_stddev = lambda x, k_h, k_w: 1 / math.sqrt(k_w * k_h * x.get_shape()[-1])
 
 
-def get_image(image_path, image_size, need_transform=False):
+def get_image(image_path, image_size=(), need_transform=False):
     if need_transform:
         return transform(imread(image_path), image_size)
     else:
