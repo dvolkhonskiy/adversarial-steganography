@@ -18,27 +18,32 @@ class LSBMatching(BaseStego):
         :param information: array with int bits
         :param stego: name of image with hidden message
         """
+        with tf.variable_scope('Stego'):
 
-        n, width, height, chan = tuple(map(int, container._shape))
+            n, width, height, chan = tuple(map(int, container._shape))
 
-        information = BaseStego.get_information(n, 50)
-        logger.debug('Information to hide', information)
+            information = BaseStego.get_information(n, 50)
+            # logger.debug('Information to hide', information)
 
-        print('Num of images: %s' % n)
-        for img_idx in range(n):
-            print(img_idx)
+            mask = np.zeros(list(container.get_shape()))
 
-            for i, bit in enumerate(information[img_idx]):
-                ind, jnd = i // width, i - width * (i // width)
+            print('Num of images: %s' % n)
+            for img_idx in range(n):
+                print(img_idx)
 
-                if tf.to_int32(container[img_idx, ind, jnd, 0]) % 2 != bit:
-                    if np.random.randint(0, 2) == 0:
-                        tf.sub(container[img_idx, ind, jnd, 0], 1)
-                    else:
-                        tf.add(container[img_idx, ind, jnd, 0], 1)
+                for i, bit in enumerate(information[img_idx]):
+                    ind, jnd = i // width, i - width * (i // width)
 
-        logger.debug('Finish encoding')
-        return container
+                    if tf.to_int32(container[img_idx, ind, jnd, 0]) % 2 != bit:
+                        if np.random.randint(0, 2) == 0:
+                            # tf.assign_sub(container[img_idx, ind, jnd, 0], 1)
+                            mask[img_idx, ind, jnd, 0] += 1
+                        else:
+                            # tf.assign_add(container[img_idx, ind, jnd, 0], 1)
+                            mask[img_idx, ind, jnd, 0] -= 1
+
+            logger.debug('Finish encoding')
+            return tf.add(container, mask)
 
     @staticmethod
     def encode(container, information, stego='stego.png'):
@@ -58,7 +63,7 @@ class LSBMatching(BaseStego):
         information = np.append(information, BaseStego.DELIMITER)
         for i, bit in enumerate(information):
 
-            if bit == 0 and red_ch[i] & 1 == 1 or bit == 1 and red_ch[i] & 1 == 0:
+            if bit != red_ch[i] & 1:
                 if np.random.randint(0, 2) == 0:
                     red_ch[i] -= 1
                 else:
@@ -66,7 +71,7 @@ class LSBMatching(BaseStego):
 
         img_matr[:, :, 2] = red_ch.reshape((height, width))
 
-        Image.fromarray(img_matr).save('stego_' + container)
+        Image.fromarray(img_matr).save(stego)
 
     @staticmethod
     def decode(container):
