@@ -7,7 +7,7 @@ from subprocess import getoutput
 
 sys.path.append('../')
 
-from steganography import LSBMatching, LSB
+from steganography import LSBMatching
 from nn.image_utils import transform, imread
 from scipy.misc import imsave
 
@@ -43,6 +43,7 @@ def resize_image(img):
 
 
 def apply_matlab_stego(img):
+    # TODO doesn't work yet
     return getoutput('octave ../matlab_stego/HUGO/run_one.m %s' % img)
 
 
