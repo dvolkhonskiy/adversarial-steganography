@@ -4,10 +4,9 @@ import numpy as np
 import tensorflow as tf
 # from nn.conv_adv_net import ConvAdvNet
 from steganography.algorithms.lsb_matching import LSBMatching
-from nn.image_utils import save_images_to_one, save_images
+from nn.image_utils import save_images
 from nn.sgan import SGAN
 from utils.logger import logger
-from time import strftime, gmtime
 from time import time
 
 flags = tf.app.flags
@@ -24,8 +23,7 @@ flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image s
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [False]")
 flags.DEFINE_boolean('need_to_load', False, 'Need to load saved model')
 flags.DEFINE_string('img_format', 'png', 'Format of input images')
-# flags.DEFINE_string('data', '/home/dvolkhonskiy/datasets/lusn/bedroom_train_lmdb', 'Dataset directory')
-flags.DEFINE_string('data', '/home/dvolkhonskiy/datasets/img_align_celeba', 'Dataset directory')
+flags.DEFINE_string('data', './data', 'Dataset directory')
 flags.DEFINE_string('dataset_name', 'celeba', 'Dataset Name')
 flags.DEFINE_string('summaries_dir', './tf_log', 'Directory fot TF to store logs')
 FLAGS = flags.FLAGS
@@ -56,14 +54,12 @@ def main(_):
         n_batches = 200
 
         z_sample = np.random.uniform(-1, 1, size=(FLAGS.batch_size, dcgan.z_dim))
-        images = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
 
         for i in range(n_batches):
             np.random.seed(int(time()))
             z_sample = np.random.uniform(-1, 1, size=(FLAGS.batch_size, dcgan.z_dim))
             samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
             save_images(samples, i, folder='/home/dvolkhonskiy/datasets/new/sgan_generated')
-        # save_images_to_one(samples, [8, 8], './samples/test_%s.png' % strftime("%Y-%m-%d %H:%M:%S", gmtime()))
 
 if __name__ == '__main__':
     tf.app.run()
