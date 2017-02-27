@@ -2,9 +2,10 @@ import os
 
 import numpy as np
 import tensorflow as tf
-from steganography.algorithms.lsb_matching import LSBMatching
-from nn.steganalyzer import Steganalyzer
-from utils.logger import logger
+
+from advstego.nn.steganalyzer import Steganalyzer
+from advstego.steganography.lsb_matching import LSBMatching
+from advstego.utils import logger
 
 flags = tf.app.flags
 flags.DEFINE_string('model_name', 'stego_lsb_matching', 'Name of trainable model')

@@ -1,13 +1,13 @@
 import os
+from time import time
 
 import numpy as np
 import tensorflow as tf
-# from nn.conv_adv_net import ConvAdvNet
-from steganography.algorithms.lsb_matching import LSBMatching
-from nn.image_utils import save_images
-from nn.sgan import SGAN
-from utils.logger import logger
-from time import time
+from advstego.nn.image_utils import save_images
+
+from advstego.nn.sgan import SGAN
+from advstego.steganography.lsb_matching import LSBMatching
+from advstego.utils import logger
 
 flags = tf.app.flags
 flags.DEFINE_string('model_name', 'sgan', 'Name of trainable model')

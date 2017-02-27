@@ -1,6 +1,8 @@
 import numpy as np
-from steganography.text import texts
-from utils.string_utils import str_to_bin
+
+from .text import texts
+from advstego.utils.string_utils import str_to_bin
+
 
 class BaseStego:
     DELIMITER = np.ones(100, dtype=int)  # TODO hidden info ends with 1, then decoder skip it

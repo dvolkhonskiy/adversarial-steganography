@@ -1,14 +1,18 @@
 import os
-import numpy as np
-import tensorflow as tf
-from nn.image_utils import get_image, save_images_to_one
 import time
 from glob import glob
-from utils.logger import logger, log
-from nn.base_model import BaseModel
-from tensorflow.python.ops.nn import sigmoid_cross_entropy_with_logits as cross_entropy
-from tensorflow.contrib.layers import fully_connected as linear
+
+import numpy as np
+import tensorflow as tf
 from tensorflow.contrib.layers import convolution2d as conv2d
+from tensorflow.contrib.layers import fully_connected as linear
+from tensorflow.python.ops.nn import sigmoid_cross_entropy_with_logits as cross_entropy
+
+from .base_model import BaseModel
+from .image_utils import get_image, save_images_to_one
+from ..utils import logger, log
+
+
 # from tensorflow.contrib.layers import conv2d_transpose as decon2d
 
 

@@ -1,14 +1,13 @@
 import os
-from multiprocessing import Pool
-from glob import glob
-from PIL import Image
 import sys
+from glob import glob
+from multiprocessing import Pool
 from subprocess import getoutput
 
 sys.path.append('../')
 
-from steganography import LSBMatching
-from nn.image_utils import transform, imread
+from advstego.steganography import LSBMatching
+from advstego.nn import transform, imread
 from scipy.misc import imsave
 
 

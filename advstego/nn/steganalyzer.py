@@ -2,16 +2,14 @@ import functools
 import os
 import time
 
+import numpy as np
+import tensorflow as tf
 from tensorflow.contrib.layers import convolution2d as conv2d
 from tensorflow.contrib.layers import fully_connected as linear
 
-from nn.base_model import BaseModel
-from nn.image_utils import get_image
-from nn.layers import *
-from utils.logger import logger, log
-
-import tensorflow as tf
-import numpy as np
+from advstego.nn import BaseModel
+from advstego.nn import get_image
+from advstego.utils import logger, log
 
 
 def lazy_property(function):

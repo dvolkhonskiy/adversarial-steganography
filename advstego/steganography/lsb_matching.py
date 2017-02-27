@@ -1,9 +1,9 @@
-from steganography.algorithms import BaseStego
-from PIL import Image
 import numpy as np
 import tensorflow as tf
+from PIL import Image
 
-from utils.logger import logger, log
+from advstego.steganography import BaseStego
+from advstego.utils import logger
 
 
 class LSBMatching(BaseStego):
