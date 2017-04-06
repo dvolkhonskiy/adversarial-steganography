@@ -1,6 +1,7 @@
 # Adversarial-Model-For-Steganography
 
-Deep adversarial neural network for steganography.
+Deep adversarial neural network for steganography. 
+Code for paper https://arxiv.org/pdf/1703.05502.pdf --- Steganographic Generative Adversarial Networks. NIPS 2016 workshop on Adversarial Training
 
 
 ## Usage
