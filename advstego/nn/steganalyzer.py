@@ -56,8 +56,8 @@ class Steganalyzer(BaseModel):
             [-1, 2, -2, 2, -1]
         ], dtype=tf.float32)
 
-        kernel = tf.pack([K, K, K])
-        kernel = tf.pack([kernel, kernel, kernel])
+        kernel = tf.stack([K, K, K])
+        kernel = tf.stack([kernel, kernel, kernel])
 
         return tf.nn.conv2d(X, tf.transpose(kernel, [2, 3, 0, 1]), [1, 1, 1, 1], padding='SAME')
 
@@ -178,7 +178,7 @@ class Steganalyzer(BaseModel):
 
     @lazy_property
     def loss(self):
-        errs = tf.nn.softmax_cross_entropy_with_logits(self.network, self.target)
+        errs = tf.nn.softmax_cross_entropy_with_logits(logits=self.network, labels=self.target)
         return tf.reduce_mean(errs)
 
     @lazy_property
@@ -194,17 +194,17 @@ class Steganalyzer(BaseModel):
         def get_init():
             return tf.truncated_normal_initializer(stddev=0.02)
 
-        net = conv2d(net, 10, [7, 7], activation_fn=tf.nn.relu, name='conv1', weights_initializer=get_init())
-        net = conv2d(net, 20, [5, 5], activation_fn=tf.nn.relu, name='conv2', weights_initializer=get_init())
+        net = conv2d(net, 10, [7, 7], activation_fn=tf.nn.relu, scope='conv1', weights_initializer=get_init())
+        net = conv2d(net, 20, [5, 5], activation_fn=tf.nn.relu, scope='conv2', weights_initializer=get_init())
         net = tf.nn.max_pool(net, [1, 4, 4, 1], [1, 1, 1, 1], padding='SAME')
 
-        net = conv2d(net, 30, [3, 3], activation_fn=tf.nn.relu, name='conv3', weights_initializer=get_init())
-        net = conv2d(net, 40, [3, 3], activation_fn=tf.nn.relu, name='conv4', weights_initializer=get_init())
+        net = conv2d(net, 30, [3, 3], activation_fn=tf.nn.relu, scope='conv3', weights_initializer=get_init())
+        net = conv2d(net, 40, [3, 3], activation_fn=tf.nn.relu, scope='conv4', weights_initializer=get_init())
 
         net = tf.nn.max_pool(net, [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME')
 
         net = tf.reshape(net, [self.conf.batch_size, -1])
 
-        net = linear(net, 100, activation_fn=tf.nn.tanh, name='FC1')
-        out = linear(net, 2, activation_fn=tf.nn.softmax, name='out')
+        net = linear(net, 100, activation_fn=tf.nn.tanh, scope='FC1')
+        out = linear(net, 2, activation_fn=tf.nn.softmax, scope='out')
         return out
