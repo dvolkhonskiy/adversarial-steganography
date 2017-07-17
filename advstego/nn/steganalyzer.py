@@ -35,12 +35,12 @@ class Steganalyzer(BaseModel):
         self.images = tf.placeholder(tf.float32, [self.conf.batch_size] + list(self.image_shape))
         self.target = tf.placeholder(tf.float32, [self.conf.batch_size, 2])
 
-        if stego_name:
-            self.data = self.get_images_names('%s_train/*.%s' % (stego_name, self.conf.img_format))
-            self.test_dir = '%s_test' % stego_name
-        else:
-            self.data = self.get_images_names('train/*.%s' % self.conf.img_format)
-            self.test_dir = 'test'
+        # if stego_name:
+        self.data = self.get_images_names('%s/train/*.%s' % (config.data, self.conf.img_format))
+        self.test_dir = '%s/test/' % (config.data)
+        # else:
+        #     self.data = self.get_images_names('train/*.%s' % self.conf.img_format)
+        #     self.test_dir = 'test'
 
         # init
         self.loss
@@ -105,8 +105,7 @@ class Steganalyzer(BaseModel):
 
                 batch_targets = self.get_targets(batch_files)
 
-                self.sess.run(self.optimize, feed_dict={self.images: batch_images, self.target: batch_targets})
-                loss = self.loss.eval({self.images: batch_images, self.target: batch_targets})
+                _, loss = self.sess.run([self.optimize, self.loss], feed_dict={self.images: batch_images, self.target: batch_targets})
 
                 losses.append(loss)
 
@@ -115,15 +114,11 @@ class Steganalyzer(BaseModel):
 
                 counter += 1
 
-                if counter % 300 == 0:
-                    logger.info('------')
 
-                    stego_accuracy = self.accuracy(n_files=-1, test_dir=self.test_dir)
-                    logger.info('[TEST] Epoch {:2d} accuracy: {:3.1f}%'.format(epoch + 1, 100 * stego_accuracy))
 
-                    for gen_dir in gen_dirs:
-                        gen_accuracy = self.accuracy(n_files=-1, test_dir=gen_dir)
-                        logger.info('[GEN_TEST] Folder {}, accuracy: {:3.1f}%'.format(gen_dir, 100 * gen_accuracy))
+            for gen_dir in gen_dirs:
+                acc, std = self.accuracy(n_files=-1, test_dir=gen_dir)
+                logger.info('[GEN_TEST] Folder %s, accuracy: %.4f, std: %.4f' % (gen_dir, acc, std))
 
 
 
@@ -153,7 +148,7 @@ class Steganalyzer(BaseModel):
         return tf.reduce_mean(tf.cast(stego_mistakes, tf.float32)).eval()
 
     def accuracy(self, test_dir='test', abs=False, n_files=2 ** 12):
-        logger.info('[TEST], test data folder: %s, n_files: %s' % (test_dir, 2 * n_files))
+        # logger.info('[TEST], test data folder: %s, n_files: %s' % (test_dir, 2 * n_files))
         X_test = self.get_images_names('%s/*.%s' % (test_dir, self.conf.img_format), abs=abs)[:n_files]
 
         accuracies = []
@@ -170,7 +165,7 @@ class Steganalyzer(BaseModel):
 
             accuracies.append(self.get_accuracy(batch_images, batch_targets))
 
-        return np.mean(accuracies)
+        return np.mean(accuracies), np.std(accuracies)
 
     @lazy_property
     def saver(self):

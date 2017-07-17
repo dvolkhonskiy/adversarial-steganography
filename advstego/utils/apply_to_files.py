@@ -3,15 +3,16 @@ import sys
 from glob import glob
 from multiprocessing import Pool
 from subprocess import getoutput
+import numpy as np
 
-sys.path.append('../')
+sys.path.append('../../')
 
 from advstego.steganography import LSBMatching
 from advstego.nn import transform, imread
 from scipy.misc import imsave
 
 
-img_dir = '/home/dvolkhonskiy/datasets/generated_for_training/lsb_matching_test'
+img_dir = '/home/dvolkhonskiy/SGAN/code/data/10_seeds/other_seeds'
 ext = '*.png'
 algo = LSBMatching()
 
@@ -32,7 +33,8 @@ def delete_img(img):
 def apply_stego(img):
     print('Embedding to %s' % img)
     path = os.path.split(img)
-    info = algo.get_information(batch_size=1, len_of_text=450)[0]
+    # info = algo.get_information(batch_size=1, len_of_text=450)[0]
+    info = np.random.randint(0, 2, 1638) # 0.4 bpp
     algo.encode(img, info, os.path.join(path[0], 'stego_' + path[-1]))
 
 

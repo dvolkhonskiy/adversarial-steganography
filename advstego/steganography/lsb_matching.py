@@ -2,8 +2,27 @@ import numpy as np
 import tensorflow as tf
 from PIL import Image
 
-from advstego.steganography import BaseStego
+# from advstego.steganography import BaseStego
 from advstego.utils import logger
+
+class BaseStego:
+    DELIMITER = np.ones(100, dtype=int)  # TODO hidden info ends with 1, then decoder skip it
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def tf_encode(container):
+        raise NotImplementedError
+
+    @staticmethod
+    def encode(container, information):
+        raise NotImplementedError
+
+    @staticmethod
+    def decode(container):
+        raise NotImplementedError
+
 
 
 class LSBMatching(BaseStego):
@@ -22,8 +41,7 @@ class LSBMatching(BaseStego):
 
             n, width, height, chan = tuple(map(int, container._shape))
 
-            information = BaseStego.get_information(n, 50)
-            # logger.debug('Information to hide', information)
+            info = np.random.randint(0, 2, (n, 1638))
 
             mask = np.zeros(list(container.get_shape()))
 
@@ -31,7 +49,7 @@ class LSBMatching(BaseStego):
             for img_idx in range(n):
                 print(img_idx)
 
-                for i, bit in enumerate(information[img_idx]):
+                for i, bit in enumerate(info[img_idx]):
                     ind, jnd = i // width, i - width * (i // width)
 
                     if tf.to_int32(container[img_idx, ind, jnd, 0]) % 2 != bit:
