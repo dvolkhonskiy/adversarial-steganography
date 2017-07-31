@@ -52,13 +52,13 @@ class LSBMatching(BaseStego):
                 for i, bit in enumerate(info[img_idx]):
                     ind, jnd = i // width, i - width * (i // width)
 
-                    if tf.to_int32(container[img_idx, ind, jnd, 0]) % 2 != bit:
+                    if tf.to_int32(container[img_idx, ind, jnd, 0]) * 127.5 % 2 != bit:
                         if np.random.randint(0, 2) == 0:
                             # tf.assign_sub(container[img_idx, ind, jnd, 0], 1)
-                            mask[img_idx, ind, jnd, 0] += 1
+                            mask[img_idx, ind, jnd, 0] += 1/256.
                         else:
                             # tf.assign_add(container[img_idx, ind, jnd, 0], 1)
-                            mask[img_idx, ind, jnd, 0] -= 1
+                            mask[img_idx, ind, jnd, 0] -= 1/256.
 
             logger.debug('Finish encoding')
             return tf.add(container, mask)
@@ -76,7 +76,7 @@ class LSBMatching(BaseStego):
         img_matr = np.asarray(img)
         img_matr.setflags(write=True)
 
-        red_ch = img_matr[:, :, 2].reshape((1, -1))[0]
+        red_ch = img_matr[:, :, 0].reshape((1, -1))[0]
 
         information = np.append(information, BaseStego.DELIMITER)
         for i, bit in enumerate(information):
@@ -87,7 +87,7 @@ class LSBMatching(BaseStego):
                 else:
                     red_ch[i] += 1
 
-        img_matr[:, :, 2] = red_ch.reshape((height, width))
+        img_matr[:, :, 0] = red_ch.reshape((height, width))
 
         Image.fromarray(img_matr).save(stego)
 
@@ -96,7 +96,7 @@ class LSBMatching(BaseStego):
         img = Image.open(container)
         img_matr = np.asarray(img)
 
-        red_ch = img_matr[:, :, 2].reshape((1, -1))[0]
+        red_ch = img_matr[:, :, 0].reshape((1, -1))[0]
 
         delim_len = len(BaseStego.DELIMITER)
 
