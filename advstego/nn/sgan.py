@@ -8,6 +8,8 @@ from tensorflow.contrib.layers import convolution2d as conv2d
 from tensorflow.contrib.layers import fully_connected as linear
 from tensorflow.python.ops.nn import sigmoid_cross_entropy_with_logits as cross_entropy
 
+from advstego.nn.steganalyzer import Steganalyzer
+from advstego.steganography import LSBMatching
 from .base_model import BaseModel
 from .image_utils import get_image, save_images_to_one
 from ..utils import logger, log
@@ -59,6 +61,8 @@ class SGAN(BaseModel):
         self.sample_images = tf.placeholder(tf.float32, [self.sample_size] + list(self.image_shape),
                                             name='sample_images')
 
+
+
         self.z = tf.placeholder(tf.float32, [None, self.z_dim], name='z')
 
         self.init_neural_networks()
@@ -72,9 +76,15 @@ class SGAN(BaseModel):
         # generator
         self.generator = self.generator_nn(self.z, train=True)
 
+        self.in_mask = tf.placeholder(tf.int32, self.generator.get_shape(), name='z')
+        self.in_message = tf.placeholder(tf.int32, self.generator.get_shape(), name='z')
+
+        output_lsb_emb, output_lsb_mask, output_lsb = self.stego_algorithm().lsb_embed(self.generator,
+                                                                                       self.in_message, self.in_mask)
+
         # discriminator real/fake
         self.D_real  = self.discriminator(self.images)
-        self.D_stego = self.eve(self.stego_algorithm().tf_encode(self.generator))
+        self.D_stego = self.eve(output_lsb_emb)
 
         # self.D_stego = self.discriminator_stego_nn(self.generator)
         self.D_fake = self.discriminator(self.generator, reuse=True)
@@ -114,9 +124,11 @@ class SGAN(BaseModel):
         self.d_s_n_vars = [var for var in t_vars if 'd_s_' in var.name]
 
     @log('Training')
-    def train(self):
+    def train(self, start_epoch=0):
         if self.conf.need_to_load:
-            self.load(self.conf.checkpoint_dir)
+            self.load(self.conf.checkpoint_dir, start_epoch)
+
+        start_epoch += 1
 
         data = glob(os.path.join(self.conf.data, "*.%s" % self.conf.img_format))
         logger.info('Total amount of images: %s' % len(data))
@@ -145,10 +157,17 @@ class SGAN(BaseModel):
         start_time = time.time()
         batch_idxs = min(len(data), self.conf.train_size) / self.conf.batch_size
 
-        logger.debug('Starting updating')
-        for epoch in range(self.conf.epoch):
-            stego_losses, fake_real_losses, generator_losses = [], [], []
+        total_pixels = 64 * 64 * 3
+        one_pixels = int(total_pixels * 0.04)
+        payload_mask = np.hstack([np.ones(one_pixels), np.zeros(total_pixels - one_pixels)])
+        payload_mask = payload_mask.reshape([64, 64, 3])
+        payload_mask = np.tile(payload_mask, [self.conf.batch_size, 1, 1, 1])
+        print('Payload mask shape is', payload_mask.shape)
 
+        logger.debug('Starting updating')
+        for current_epoch in range(self.conf.epoch):
+            stego_losses, fake_real_losses, generator_losses = [], [], []
+            epoch = start_epoch + current_epoch
             logger.info('Starting epoch %s' % epoch)
 
             for idx in range(0, int(batch_idxs)):
@@ -158,22 +177,25 @@ class SGAN(BaseModel):
 
                 batch_z = np.random.uniform(-1, 1, [self.conf.batch_size, self.z_dim]).astype(np.float32)
 
-                out = self.sess.run([merged, d_fr_optim, d_s_n_optim, g_optim, g_optim], feed_dict={self.images: batch_images, self.z: batch_z})
+                mask = np.random.randint(0, 2, self.generator.get_shape()) * payload_mask
+
+                message = np.random.randint(0, 2, self.generator.get_shape()) * payload_mask
+
+                out = self.sess.run([merged, d_fr_optim, d_s_n_optim, g_optim, g_optim], feed_dict={
+                    self.images: batch_images, self.z: batch_z,
+                    self.in_mask: mask,
+                    self.in_message: message
+                })
                 summary = out[0]
 
                 train_writer.add_summary(summary, global_step=counter)
-
-                # self.sess.run(d_s_n_optim, feed_dict={self.images: batch_images, self.z: batch_z})
-                #
-                # self.sess.run(g_optim, feed_dict={self.z: batch_z})
-                # self.sess.run(g_optim, feed_dict={self.z: batch_z})
 
                 logger.debug("[ITERATION] Epoch [%2d], iteration [%4d/%4d] time: %4.4f" %
                              (epoch, idx, batch_idxs, time.time() - start_time))
 
                 counter += 1
 
-            self.save(self.conf.checkpoint_dir, counter)
+            self.save(self.conf.checkpoint_dir, epoch)
 
             logger.info('Save samples')
             samples, d_loss, g_loss = self.sess.run(

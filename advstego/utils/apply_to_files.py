@@ -12,7 +12,27 @@ from advstego.nn import transform, imread
 from scipy.misc import imsave
 
 
-img_dir = '/home/dvolkhonskiy/SGAN/code/data/10_seeds/other_seeds'
+# img_dirs = [
+#     '/home/dvolkhonskiy/SGAN/code/data/10_seeds/train',
+#     '/home/dvolkhonskiy/SGAN/code/data/10_seeds/test',
+#     '/home/dvolkhonskiy/SGAN/code/data/10_seeds/other_seeds',
+#     '/home/dvolkhonskiy/SGAN/code/data/10_seeds/more_train',
+#     '/home/dvolkhonskiy/SGAN/code/data/10_seeds/more_train_other_seeds',
+# ]
+
+# img_dirs = [
+#             '/home/dvolkhonskiy/SGAN/code/data/overtraining/',
+#             '/home/dvolkhonskiy/SGAN/code/data/overtraining/plus_0',
+#             '/home/dvolkhonskiy/SGAN/code/data/overtraining/plus_1',
+#             '/home/dvolkhonskiy/SGAN/code/data/overtraining/plus_2',
+#             '/home/dvolkhonskiy/SGAN/code/data/overtraining/plus_3',
+#             '/home/dvolkhonskiy/SGAN/code/data/overtraining/plus_4',
+#         ]
+
+img_dirs = ['/home/dvolkhonskiy/SGAN/code/data/overtraining/plus_%s' % i for i in range(0, 66)]
+img_dirs.append('/home/dvolkhonskiy/SGAN/code/data/overtraining/')
+
+
 ext = '*.png'
 algo = LSBMatching()
 
@@ -48,23 +68,25 @@ def apply_matlab_stego(img):
     return getoutput('octave ../matlab_stego/HUGO/run_one.m %s' % img)
 
 
-p = Pool(8)
+for dir in img_dirs:
 
-# delete
-img_list = glob(os.path.join(img_dir, ext))
-p.map(delete_img, img_list)
+    p = Pool(8)
 
-
-# resize
-# img_list = glob(os.path.join(img_dir, ext))
-# p.map(resize_image, img_list)
+    # delete
+    # img_list = glob(os.path.join(dir, ext))
+    # p.map(delete_img, img_list)
 
 
-# embedding
-img_list = glob(os.path.join(img_dir, ext))
-p.map(apply_stego, img_list)
+    # resize
+    # img_list = glob(os.path.join(img_dir, ext))
+    # p.map(resize_image, img_list)
 
-p.close()
+
+    # embedding
+    img_list = glob(os.path.join(dir, ext))
+    p.map(apply_stego, img_list)
+
+    p.close()
 
 
 

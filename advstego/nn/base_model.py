@@ -2,6 +2,7 @@ import os
 from glob import glob
 
 import tensorflow as tf
+import numpy as np
 
 from advstego.utils import logger, log
 
@@ -13,7 +14,7 @@ class BaseModel:
         self.tf_init_rnd_norm = tf.random_normal_initializer
 
     def init_saver(self):
-        self.saver = tf.train.Saver()
+        self.saver = tf.train.Saver(max_to_keep=100)
 
     def get_images_names(self, _format, abs=False):
         if abs:
@@ -40,11 +41,6 @@ class BaseModel:
                                 initializer=tf.random_normal_initializer(stddev=stddev))
             return tf.nn.conv2d_transpose(input_, w, output_shape=output_shape, strides=[1, d_h, d_w, 1])
 
-    @staticmethod
-    def leaky_relu(x, alpha=0.2, name="lrelu"):
-        with tf.variable_scope(name):
-            return tf.maximum(alpha * x, x)
-
     def image_processing_layer(self, X):
         K = 1 / 12. * tf.constant([
             [-1, 2, -2, 2, -1],
@@ -54,10 +50,17 @@ class BaseModel:
             [-1, 2, -2, 2, -1]
         ], dtype=tf.float32)
 
-        kernel = tf.stack([K, K, K])
-        kernel = tf.stack([kernel, kernel, kernel])
+        # kernel = tf.stack([K, K, K])
+        # kernel = tf.stack([kernel, kernel, kernel])
+
+        kernel = np.eye(3)[..., np.newaxis, np.newaxis] * K[np.newaxis, np.newaxis]
 
         return tf.nn.conv2d(X, tf.transpose(kernel, [2, 3, 0, 1]), [1, 1, 1, 1], padding='SAME')
+
+    @staticmethod
+    def leaky_relu(x, alpha=0.2, name="lrelu"):
+        with tf.variable_scope(name):
+            return tf.maximum(alpha * x, x)
 
     def save(self, checkpoint_dir, step):
 

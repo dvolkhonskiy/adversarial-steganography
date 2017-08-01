@@ -52,7 +52,7 @@ class LSBMatching(BaseStego):
                 for i, bit in enumerate(info[img_idx]):
                     ind, jnd = i // width, i - width * (i // width)
 
-                    if tf.to_int32(container[img_idx, ind, jnd, 0]) * 127.5 % 2 != bit:
+                    if tf.to_int32((container[img_idx, ind, jnd, 0] + 1) * 127.5) % 2 != bit:
                         if np.random.randint(0, 2) == 0:
                             # tf.assign_sub(container[img_idx, ind, jnd, 0], 1)
                             mask[img_idx, ind, jnd, 0] += 1/256.
@@ -62,6 +62,19 @@ class LSBMatching(BaseStego):
 
             logger.debug('Finish encoding')
             return tf.add(container, mask)
+
+    def lsb_embed(self, input, message, mask):
+        lsb = tf.to_int32((input + 1) * 127.5) % 2
+
+        pm1_mask = tf.to_float(tf.where(tf.equal(lsb, message),
+                                        tf.zeros_like(mask),
+                                        1 - 2 * mask))
+
+        pm1_mask = tf.stop_gradient(pm1_mask)
+
+        embed = tf.add(input, pm1_mask / 127.5)
+
+        return embed, pm1_mask, lsb
 
     @staticmethod
     def encode(container, information, stego='stego.png'):

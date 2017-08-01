@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.layers import convolution2d as conv2d
 from tensorflow.contrib.layers import fully_connected as linear
+from tensorflow.contrib.layers import batch_norm as batch_norm
 
 from advstego.nn import BaseModel
 from advstego.nn import get_image
@@ -36,30 +37,12 @@ class Steganalyzer(BaseModel):
         self.target = tf.placeholder(tf.float32, [self.conf.batch_size, 2])
 
         # if stego_name:
-        self.data = self.get_images_names('%s/train/*.%s' % (config.data, self.conf.img_format))
-        self.test_dir = '%s/test/' % (config.data)
-        # else:
-        #     self.data = self.get_images_names('train/*.%s' % self.conf.img_format)
-        #     self.test_dir = 'test'
+        self.data = self.get_images_names('%s/*.%s' % (config.data, self.conf.img_format))
 
         # init
         self.loss
         self.optimize
         self.network
-
-    def image_processing_layer(self, X):
-        K = 1 / 12. * tf.constant([
-            [-1, 2, -2, 2, -1],
-            [2, -6, 8, -6, 2],
-            [-2, 8, -12, 8, -2],
-            [2, -6, 8, -6, 2],
-            [-1, 2, -2, 2, -1]
-        ], dtype=tf.float32)
-
-        kernel = tf.stack([K, K, K])
-        kernel = tf.stack([kernel, kernel, kernel])
-
-        return tf.nn.conv2d(X, tf.transpose(kernel, [2, 3, 0, 1]), [1, 1, 1, 1], padding='SAME')
 
     def get_targets(self, batch_files):
         get_tar = lambda x: int('stego_' in os.path.split(x)[-1])
@@ -83,11 +66,6 @@ class Steganalyzer(BaseModel):
         # counter = 1
         start_time = time.time()
         batch_idxs = min(len(data), self.conf.train_size) / self.conf.batch_size
-
-        stego_accuracy = 0
-
-        accuracies = []
-        accuracies_steps = []
 
         logger.debug('Starting updating')
         for epoch in range(self.conf.epoch):
@@ -114,32 +92,13 @@ class Steganalyzer(BaseModel):
 
                 counter += 1
 
+            if epoch % 5 == 0 and epoch > 0:
+                for gen_dir in gen_dirs:
+                    acc, std = self.accuracy(n_files=-1, test_dir=gen_dir)
+                    logger.info('[GEN_TEST] Folder %s, accuracy: %.4f, std: %.4f' % (gen_dir, acc, std))
 
-
-            for gen_dir in gen_dirs:
-                acc, std = self.accuracy(n_files=-1, test_dir=gen_dir)
-                logger.info('[GEN_TEST] Folder %s, accuracy: %.4f, std: %.4f' % (gen_dir, acc, std))
-
-
-
-                        # SAVE after each epoch
-                        # self.save(self.conf.checkpoint_dir, counter)
-
-                        # stego_accuracy = self.accuracy(n_files=-1, test_dir=self.test_dir)
-                        # gen_accuracy = self.accuracy(n_files=-1, test_dir=gen_dir)
-                        #
-                        # accuracies.append(stego_accuracy)
-                        # accuracies_steps.append(counter)
-                        #
-                        # np.savetxt('accuracies.csv', accuracies)
-                        # np.savetxt('accuracies_steps.csv', accuracies_steps)
-                        #
-                        # max_acc_idx = np.argmax(accuracies)
-                        # logger.info('[TEST] Epoch {:2d} error: {:3.1f}%'.format(epoch + 1, 100 * stego_accuracy))
-                        # logger.info('[GEN_TEST] Epoch {:2d} error: {:3.1f}%'.format(epoch + 1, 100 * gen_accuracy))
-
-                        # logger.info('[TEST] Max accuracy: %s, step: %s, epoch: %s' % (accuracies[max_acc_idx],
-                        #                                                               accuracies_steps[max_acc_idx], epoch))
+            # SAVE after each epoch
+            self.save(self.conf.checkpoint_dir, epoch)
 
     def get_accuracy(self, X_test, y_test):
         stego_answs = self.sess.run(self.network, feed_dict={self.images: X_test})
@@ -190,11 +149,15 @@ class Steganalyzer(BaseModel):
             return tf.truncated_normal_initializer(stddev=0.02)
 
         net = conv2d(net, 10, [7, 7], activation_fn=tf.nn.relu, scope='conv1', weights_initializer=get_init())
+        # net = batch_norm(net, center=True, scale=True, activation_fn=tf.nn.relu, scope='d_bn1')
         net = conv2d(net, 20, [5, 5], activation_fn=tf.nn.relu, scope='conv2', weights_initializer=get_init())
+        # net = batch_norm(net, center=True, scale=True, activation_fn=tf.nn.relu, scope='d_bn2')
         net = tf.nn.max_pool(net, [1, 4, 4, 1], [1, 1, 1, 1], padding='SAME')
 
         net = conv2d(net, 30, [3, 3], activation_fn=tf.nn.relu, scope='conv3', weights_initializer=get_init())
+        # net = batch_norm(net, center=True, scale=True, activation_fn=tf.nn.relu, scope='d_bn3')
         net = conv2d(net, 40, [3, 3], activation_fn=tf.nn.relu, scope='conv4', weights_initializer=get_init())
+        # net = batch_norm(net, center=True, scale=True, activation_fn=tf.nn.relu, scope='d_bn4')
 
         net = tf.nn.max_pool(net, [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME')
 
