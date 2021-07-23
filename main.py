@@ -8,8 +8,9 @@ from advstego.nn.image_utils import save_images
 from advstego.nn.sgan import SGAN
 from advstego.steganography.lsb_matching import LSBMatching
 from advstego.utils import logger
+from argparse import ArgumentParser
 
-flags = tf.app.flags
+flags = tf.compat.v1.app.flags
 flags.DEFINE_string('model_name', 'sgan', 'Name of trainable model')
 flags.DEFINE_integer("epoch", 20, "Epoch to train [25]")
 flags.DEFINE_float("learning_rate", 0.0002, "Learning rate of for adam [0.0002]")
@@ -24,7 +25,7 @@ flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image s
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [False]")
 flags.DEFINE_boolean('need_to_load', False, 'Need to load saved model')
 flags.DEFINE_string('img_format', 'jpg', 'Format of input images')
-flags.DEFINE_string('data', './data/celebA', 'Dataset directory')
+
 flags.DEFINE_string('dataset_name', 'celebA', 'Dataset Name')
 flags.DEFINE_string('summaries_dir', './tf_log_alpha_05', 'Directory fot TF to store logs')
 FLAGS = flags.FLAGS
@@ -63,4 +64,10 @@ def main(_):
         #     save_images(samples, i, folder='/home/dvolkhonskiy/datasets/new/sgan_generated')
 
 if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--datapath', type=str,
+                    dest='datapath', help='Path to CelebrityA dataset',
+                    metavar='DATAPATH', default='./data/')
+    options = parser.parse_args()
+    flags.DEFINE_string('data', options.datapath+'/celebA', 'Dataset directory')
     tf.app.run()
